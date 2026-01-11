@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 0, 110, 0.5) rgba(10, 10, 10, 0.1);
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(10, 10, 10, 0.1);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 0, 110, 0.5);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 0, 110, 0.8);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: 'Fira Code', 'Courier New', monospace;
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0f3460 100%);
+  background-attachment: fixed;
+  color: #00f0ff;
+}
+
+/* Neon Glow Effect */
+@keyframes neon-glow {
+  0%, 100% {
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.5), 0 0 20px rgba(255, 0, 110, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(0, 240, 255, 0.8), 0 0 30px rgba(255, 0, 110, 0.5), 0 0 40px rgba(57, 255, 20, 0.3);
+  }
+}
+
+/* Pulse Animation */
+@keyframes pulse-neon {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.8), 0 0 30px rgba(255, 0, 110, 0.5);
+  }
+}
+
+/* Fade In Animation */
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slide In Animation */
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Glow Box Shadow */
+.neon-box {
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.3), inset 0 0 10px rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  background: rgba(10, 10, 10, 0.5);
+}
+
+.neon-box:hover {
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.6), inset 0 0 20px rgba(0, 240, 255, 0.2);
+  border: 1px solid rgba(0, 240, 255, 0.5);
+}
+
+/* Tech Button Style */
+.tech-button {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 240, 255, 0.5);
+  background: rgba(0, 240, 255, 0.05);
+  color: #00f0ff;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.tech-button:hover {
+  background: rgba(0, 240, 255, 0.15);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.6), inset 0 0 15px rgba(0, 240, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.tech-button:active {
+  transform: translateY(0);
+}
+
+/* Input Focus Style */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.5), inset 0 0 5px rgba(0, 240, 255, 0.1);
+  border-color: rgba(0, 240, 255, 0.8);
+}
+
+/* Code Block Style */
+code, pre {
+  font-family: 'Fira Code', 'Courier New', monospace;
+  background: rgba(10, 10, 10, 0.8);
+  border-left: 3px solid #39ff14;
+  padding: 2px 6px;
+}
+
+/* Highlight Animation */
+.highlight-neon {
+  animation: neon-glow 2s ease-in-out infinite;
+}
+
+/* Smooth Transitions */
+* {
+  transition: color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+}
