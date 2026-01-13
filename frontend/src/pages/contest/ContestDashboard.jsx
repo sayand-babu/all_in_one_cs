@@ -1,163 +1,210 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Code, Trophy, Users } from 'lucide-react';
+import React from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import ContestRow from "../../components/contest/ContestRows";
 
-// Mock data - hardcoded in component
-const MOCK_CONTEST = {
-  id: 'contest-1',
-  title: 'Spring 2026 Weekly Challenge #1',
-  description: 'Weekly coding challenge focusing on data structures and algorithms.',
-  durationMinutes: 180,
-  startTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-  endTime: new Date(Date.now() + 5 * 60 * 60 * 1000),
-  status: 'scheduled',
-};
+/* =========================
+   STATIC DATA
+========================= */
 
-const MOCK_PROBLEMS = [
+const ALL_CONTESTS = [
   {
-    id: 'problem-1',
-    title: 'Two Sum',
-    difficulty: 'easy',
-    points: 100,
+    id: "contest-001",
+    title: "Spring 2026 Weekly Challenge #1",
+    description:
+      "Weekly coding contest focusing on core data structures and algorithms.",
+    startTime: new Date(Date.now() - 30 * 60000).toISOString(), // Started 30 minutes ago
+    duration: 180,
+    status: "running",
+    createdBy: "user-101",
   },
   {
-    id: 'problem-2',
-    title: 'Reverse Linked List',
-    difficulty: 'medium',
-    points: 150,
+    id: "contest-002",
+    title: "Algorithm Mastery Sprint",
+    description: "Fast-paced algorithm contest.",
+    startTime: "2026-02-20T20:00",
+    duration: 120,
+    status: "completed",
+    createdBy: "user-101",
   },
   {
-    id: 'problem-3',
-    title: 'Merge k Sorted Lists',
-    difficulty: 'hard',
-    points: 250,
+    id: "contest-003",
+    title: "January DSA Practice Contest",
+    description: "DSA fundamentals practice contest.",
+    startTime: "2026-01-15T19:30",
+    duration: 150,
+    status: "completed",
+    createdBy: "user-101",
+  },
+  {
+    id: "contest-004",
+    title: "Graph Theory Challenge",
+    description: "Advanced graph problems.",
+    startTime: "2026-02-05T18:00",
+    duration: 180,
+    status: "completed",
+    createdBy: "user-202",
   },
 ];
 
-const MOCK_LEADERBOARD = [
-  {
-    rank: 1,
-    username: 'jordan_coder',
-    score: 250,
-    solvedProblems: 2,
-  },
-  {
-    rank: 2,
-    username: 'alex_developer',
-    score: 100,
-    solvedProblems: 1,
-  },
-];
+/* =========================
+   COMPONENT
+========================= */
 
-const ContestDashboard = () => {
+const ContestDetailsPage = () => {
   const { contestId } = useParams();
   const navigate = useNavigate();
-  const [selectedProblem, setSelectedProblem] = useState(MOCK_PROBLEMS[0]);
 
-  const handleProblemClick = (problem) => {
-    setSelectedProblem(problem);
-    navigate(`/contest/${contestId}/problem/${problem.id}`);
-  };
+  /* =========================
+     FIND CURRENT CONTEST
+  ========================= */
+
+  const currentContest = ALL_CONTESTS.find(
+    (contest) => contest.id === contestId
+  );
+
+  if (!currentContest) {
+    return (
+      <div className="p-6 text-white">
+        Contest not found
+      </div>
+    );
+  }
+
+  /* =========================
+     TIME LOGIC
+  ========================= */
+
+  const now = new Date();
+  const startTime = new Date(currentContest.startTime);
+  const endTime = new Date(startTime);
+  endTime.setMinutes(endTime.getMinutes() + currentContest.duration);
+
+  const canAttempt = now >= startTime && now < endTime;
+
+  const formatDateTime = (iso) => new Date(iso).toLocaleString();
+
+  /* =========================
+     PAST CONTESTS BY SAME ORGANIZER
+  ========================= */
+
+  const pastContests = ALL_CONTESTS.filter(
+    (contest) =>
+      contest.createdBy === currentContest.createdBy &&
+      contest.id !== currentContest.id
+  );
+
+  /* =========================
+     UI
+  ========================= */
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
-      {/* Header */}
-      <div className="bg-black/50 border-b border-cyan-500/30">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <button
-            onClick={() => navigate('/contests')}
-            className="flex items-center gap-2 text-cyan-400 hover:text-cyan-300 mb-4"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Contests
-          </button>
-          <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-lime-400">
-            {MOCK_CONTEST.title}
+    <div className="min-h-screen bg-gray-900 text-white p-6">
+      <div className="max-w-7xl mx-auto">
+
+        {/* Back */}
+        <button
+          onClick={() => navigate("/contests")}
+          className="flex items-center gap-2 text-gray-400 hover:text-white mb-6"
+        >
+          <ArrowLeft size={18} />
+          Back to Contests
+        </button>
+
+        {/* ================= Contest Info ================= */}
+        <div className="border border-gray-700 rounded-lg p-6 mb-8">
+          <h1 className="text-3xl font-bold mb-2">
+            {currentContest.title}
           </h1>
-          <p className="text-gray-400 mt-2">{MOCK_CONTEST.description}</p>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-3 gap-6">
-          {/* Main Content */}
-          <div className="col-span-2">
-            {/* Problems Section */}
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-cyan-500/20 rounded-lg p-6 mb-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Code className="w-5 h-5 text-cyan-400" />
-                <h2 className="text-xl font-bold text-cyan-400">Problems</h2>
-              </div>
-              <div className="space-y-2">
-                {MOCK_PROBLEMS.map((problem) => (
-                  <div
-                    key={problem.id}
-                    onClick={() => handleProblemClick(problem)}
-                    className="flex items-center justify-between p-4 bg-gray-700/30 hover:bg-gray-700/50 rounded-lg cursor-pointer transition-colors border border-gray-600/30"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-white">{problem.title}</h3>
-                      <p className="text-sm text-gray-400">
-                        <span
-                          className={`inline-block px-2 py-1 rounded mr-2 text-xs font-medium ${
-                            problem.difficulty === 'easy'
-                              ? 'bg-green-500/20 text-green-400'
-                              : problem.difficulty === 'medium'
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : 'bg-red-500/20 text-red-400'
-                          }`}
-                        >
-                          {problem.difficulty.charAt(0).toUpperCase() + problem.difficulty.slice(1)}
-                        </span>
-                        {problem.points} points
-                      </p>
-                    </div>
-                    <span className="text-cyan-400">→</span>
-                  </div>
-                ))}
-              </div>
+          <p className="text-gray-400 mb-4">
+            {currentContest.description}
+          </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <p className="text-gray-500">Contest ID</p>
+              <p className="font-mono">{currentContest.id}</p>
+            </div>
+
+            <div>
+              <p className="text-gray-500">Start Time</p>
+              <p>{formatDateTime(currentContest.startTime)}</p>
+            </div>
+
+            <div>
+              <p className="text-gray-500">Duration</p>
+              <p>{currentContest.duration} minutes</p>
+            </div>
+
+            <div>
+              <p className="text-gray-500">Status</p>
+              <span
+                className={`px-2 py-1 rounded text-xs font-semibold ${
+                  canAttempt
+                    ? "bg-green-600"
+                    : currentContest.status === "completed"
+                    ? "bg-gray-600"
+                    : "bg-blue-600"
+                }`}
+              >
+                {canAttempt ? "Running" : currentContest.status}
+              </span>
             </div>
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Leaderboard */}
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-cyan-500/20 rounded-lg p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Trophy className="w-5 h-5 text-lime-400" />
-                <h2 className="text-xl font-bold text-lime-400">Leaderboard</h2>
-              </div>
-              <div className="space-y-3">
-                {MOCK_LEADERBOARD.map((entry) => (
-                  <div key={entry.rank} className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-white">{entry.username}</p>
-                      <p className="text-xs text-gray-400">{entry.solvedProblems} solved</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-cyan-400">{entry.score}</p>
-                      <p className="text-xs text-gray-400">#{entry.rank}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Participants */}
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 border border-cyan-500/20 rounded-lg p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-cyan-400" />
-                <h2 className="text-xl font-bold text-cyan-400">Participants</h2>
-              </div>
-              <p className="text-gray-400 text-sm">
-                {MOCK_LEADERBOARD.length} participants joined
-              </p>
-            </div>
+          {/* Attempt Button */}
+          <div className="mt-6">
+            <button
+              disabled={!canAttempt}
+              onClick={() =>
+                navigate(`/contest/${currentContest.id}/attempt`)
+              }
+              className={`px-6 py-3 rounded font-semibold transition ${
+                canAttempt
+                  ? "bg-green-600 hover:bg-green-700"
+                  : "bg-gray-700 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              {canAttempt
+                ? "Attempt Contest"
+                : `Started On ${formatDateTime(currentContest.startTime)}`}
+            </button>
           </div>
         </div>
+
+        {/* ================= Past Contests ================= */}
+        {pastContests.length > 0 && (
+          <div className="border border-gray-700 rounded-lg">
+            <div className="px-4 py-3 border-b text-lg font-semibold">
+              Past Contests by Same Organizer
+            </div>
+
+            {/* Header */}
+            <div className="grid grid-cols-12 gap-2 px-3 py-2 text-xs font-semibold text-gray-500 border-b">
+              <div className="col-span-2">ID</div>
+              <div className="col-span-4">Title</div>
+              <div className="col-span-3">Start Time</div>
+              <div className="col-span-1">Duration</div>
+              <div className="col-span-2">Status</div>
+            </div>
+
+            {/* Rows */}
+            {pastContests.map((contest) => (
+              <ContestRow
+                key={contest.id}
+                contest={contest}
+                onClick={() =>
+                  navigate(`/contest/${contest.id}`)
+                }
+              />
+            ))}
+          </div>
+        )}
+
       </div>
     </div>
   );
 };
 
-export default ContestDashboard;
+export default ContestDetailsPage;
