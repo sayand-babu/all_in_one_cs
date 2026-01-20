@@ -1,121 +1,144 @@
-const express = require('express');
-const cors = require('cors');
-const { exec } = require('child_process');
-const { execSync } = require('child_process');
-const util = require('util');
-const fs = require('fs').promises;
-const path = require('path');
-const { performance } = require('perf_hooks');  // ← BUILT-IN
+const express = require("express");
+const axios = require("axios");
+const jwt = require("jsonwebtoken");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
+require("dotenv").config();
 
-const execPromise = util.promisify(exec);
+/* ===== IMPORT YOUR FILES ===== */
+const connectDB = require("./config/db_config");      // DB connection util
+const User = require("./models/user");        // User schema
+
+/* ===== APP SETUP ===== */
 const app = express();
-app.use(cors());
+
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+}));
+
+app.use(cookieParser());
 app.use(express.json());
 
-app.post('/api/execute', async (req, res) => {
-  const { language = 'python', source_code } = req.body;
-  
-  console.log(`🧑‍💻 ${language}:`, source_code.slice(0, 50));
-  
-  // 🔥 METHOD 3: REAL TIMING + MEMORY START
-  const startTime = performance.now();
-  const startMem = process.memoryUsage().heapUsed;
-  
+/* ===== CONNECT DATABASE ===== */
+connectDB();
+
+/* =====================================================
+   STEP 1: START GOOGLE LOGIN
+   Frontend redirects here
+===================================================== */
+app.get("/auth/google", (req, res) => {
+  const googleAuthUrl =
+    "https://accounts.google.com/o/oauth2/v2/auth" +
+    "?response_type=code" +
+    `&client_id=${process.env.GOOGLE_CLIENT_ID}` +
+    `&redirect_uri=${process.env.GOOGLE_REDIRECT_URI}` +
+    "&scope=openid email profile";
+
+  res.redirect(googleAuthUrl);
+});
+
+/* =====================================================
+   STEP 2: GOOGLE CALLBACK
+===================================================== */
+app.get("/auth/google/callback", async (req, res) => {
+  const code = req.query.code;
+
+  if (!code) {
+    return res.status(400).send("No authorization code received");
+  }
+
   try {
-    let result;
-    
-    if(language === 'python') {
-      const pyResult = await execPromise(
-        `python -c "${source_code.replace(/"/g, '\\"').replace(/`/g, '\\`')}"`, 
-        { timeout: 5000 }
-      );
-      result = { stdout: pyResult.stdout, stderr: pyResult.stderr, status: 'Accepted' };
-      
-    } else if(language === 'cpp') {
-      const filename = `temp_${Date.now()}.cpp`;
-      const filepath = path.join(__dirname, filename);
-      const binary = filename.replace('.cpp', '.exe');
-      
-      // 1. Write C++ source
-      await fs.writeFile(filepath, source_code);
-      console.log('📝 C++ file created:', filename);
-      
-      // 2. Compile with MinGW
-      const compile = await execPromise(`g++ "${filepath}" -o "${binary}" -static -O2 2>&1`, { timeout: 10000 });
-      
-      if(compile.stderr && !compile.stderr.toLowerCase().includes('warning')) {
-        await fs.unlink(filepath).catch(() => {});
-        throw new Error(`Compilation Error:\n${compile.stderr}`);
+    /* ---- Exchange code for tokens ---- */
+    const tokenRes = await axios.post(
+      "https://oauth2.googleapis.com/token",
+      {
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        code,
+        grant_type: "authorization_code",
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
       }
-      
-      // 3. Execute
-      const cppResult = await execPromise(`"${binary}"`, { timeout: 5000 });
-      
-      // 4. BULLETPROOF CLEANUP
-      try {
-        execSync(`taskkill /F /IM "${path.basename(binary)}" /T >nul 2>&1 || true`, { stdio: 'ignore' });
-      } catch(e) {}
-      
-      const cleanup = async (file, retries = 3) => {
-        for(let i = 0; i < retries; i++) {
-          try {
-            await fs.unlink(file);
-            console.log(`🧹 DELETED: ${path.basename(file)}`);
-            return true;
-          } catch(e) {
-            if(i === retries - 1) console.log(`⚠️ Failed to delete ${path.basename(file)}`);
-            await new Promise(r => setTimeout(r, 100));
-          }
-        }
-      };
-      
-      await Promise.all([cleanup(filepath), cleanup(binary)]);
-      
-      result = { stdout: cppResult.stdout, stderr: cppResult.stderr, status: 'Accepted' };
-      
-    } else {
-      throw new Error('Only Python and C++ supported');
+    );
+
+    const { id_token } = tokenRes.data;
+
+    /* ---- Decode ID token ---- */
+    const payload = jwt.decode(id_token);
+    const { sub, email, name, picture } = payload;
+
+    /* ---- Find or create user in DB ---- */
+    let user = await User.findOne({
+      provider: "google",
+      providerUserId: sub,
+    });
+
+    if (!user) {
+      user = await User.create({
+        provider: "google",
+        providerUserId: sub,
+        email,
+        name,
+        avatar: picture,
+      });
     }
-    
-    // 🔥 METHOD 3: REAL TIMING + MEMORY END
-    const endTime = performance.now();
-    const peakMem = process.memoryUsage().heapUsed;
-    const realTime = ((endTime - startTime) / 1000).toFixed(3);  // Seconds
-    const memoryKB = Math.round((peakMem - startMem) / 1024);    // KB
-    
-    res.json({
-      success: true,
-      status: result.status,
-      stdout: result.stdout || '',
-      stderr: result.stderr || '',
-      time: realTime,      // ← REAL e.g. "0.423"
-      memory: memoryKB     // ← REAL e.g. "2847"
+
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    /* ---- Create YOUR app JWT (use DB user ID) ---- */
+    const appToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    /* ---- Send cookie ---- */
+    res.cookie("access_token", appToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false, // true in production
     });
-    
-  } catch (error) {
-    const endTime = performance.now();
-    const realTime = ((endTime - startTime) / 1000).toFixed(3);
-    
-    res.json({
-      success: true,
-      status: 'Runtime Error',
-      stdout: '',
-      stderr: error.message,
-      time: realTime,
-      memory: 0
-    });
+
+    /* ---- Redirect to frontend ---- */
+    res.redirect("http://localhost:5173/contests");
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Google authentication failed");
   }
 });
 
-app.get('/api/languages', (req, res) => {
-  res.json([
-    { id: 71, name: 'Python 3' },
-    { id: 52, name: 'C++ (GCC)' }
-  ]);
+/* =====================================================
+   STEP 3: CHECK LOGIN STATUS
+===================================================== */
+app.get("/me", async (req, res) => {
+  const token = req.cookies.access_token;
+  if (!token) return res.status(401).json({ loggedIn: false });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId).select("-__v");
+
+    if (!user) {
+      return res.status(401).json({ loggedIn: false });
+    }
+
+    res.json({ loggedIn: true, user });
+  } catch {
+    res.status(401).json({ loggedIn: false });
+  }
 });
 
+/* =====================================================
+   STEP 4: LOGOUT
+===================================================== */
+app.post("/logout", (req, res) => {
+  res.clearCookie("access_token");
+  res.json({ success: true });
+});
+
+/* ===== START SERVER ===== */
 app.listen(5000, () => {
-  console.log('🚀 LeetCode Judge LIVE: http://localhost:5000');
-  console.log('✅ REAL TIME + MEMORY MEASUREMENT');
-  console.log('📋 POST /api/execute');
+  console.log("🚀 Auth server running at http://localhost:5000");
 });
