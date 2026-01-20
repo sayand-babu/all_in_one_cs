@@ -1,0 +1,7 @@
+# Environment variables (DO NOT COMMIT)
+.env
+frontend/.env
+backend/.env
+
+# Dependencies
+node_modules/
